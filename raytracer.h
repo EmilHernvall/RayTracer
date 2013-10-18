@@ -44,13 +44,15 @@ public:
 class LightSource {
 public:
     LightSource();
-    LightSource(const vec3&, const Color&);
+    LightSource(const vec3&, double, const Color&);
 
     inline const vec3& location() const { return m_location; }
+    inline double radius() const { return m_radius; }
     inline const Color& color() const { return m_color; }
 
 private:
     vec3 m_location;
+    double m_radius;
     Color m_color;
 };
 

@@ -51,12 +51,14 @@ Color::Color(int r, int g, int b)
 
 LightSource::LightSource()
     : m_location(vec3()),
+      m_radius(0.0),
       m_color(Color())
 {
 }
 
-LightSource::LightSource(const vec3& location, const Color& color)
+LightSource::LightSource(const vec3& location, double radius, const Color& color)
     : m_location(location),
+      m_radius(radius),
       m_color(color)
 {
 }
@@ -179,15 +181,18 @@ int main(int argc, const char* argv[])
     // distance from eye to screen, in the direction towards looking_at
     double DISTANCE_TO_SCREEN = 100.0;
     // output size
-    int IMAGE_WIDTH = 1280, IMAGE_HEIGHT = 720;
+    int IMAGE_WIDTH = 640, IMAGE_HEIGHT = 480;
     // virtual screen size
     double SCREEN_WIDTH = 100.0,
            SCREEN_HEIGHT = (IMAGE_HEIGHT * SCREEN_WIDTH) / IMAGE_WIDTH;
     // number of samples per pixel
-    int SAMPLES = 25;
+    int SAMPLES = 100;
     double INVERSE_SAMPLES = 1.0/SAMPLES,
            SQRT_SAMPLES = sqrt(SAMPLES),
            INVERSE_SQRT_SAMPLES = 1.0/SQRT_SAMPLES;
+    // max number of reflection steps
+    int MAX_REFLECTION_STEPS = 25;
+    double MIN_COLOR_INTENSITY = 1.0 / 256.0;
     // color of ambient light
     Color AMBIENT_COLOR(1.0, 1.0, 1.0);
     double RADIANCE_SCALE = 1.0;
@@ -197,13 +202,13 @@ int main(int argc, const char* argv[])
 
     // define scene
     Material RED_PLASTIC(0.1,
-                         2.0,
+                         0.7,
+                         0.3,
                          1.0,
-                         0.0,
-                         10.0,
+                         1.0,
                          Color(1.0, 0.0, 0.0),
                          Color(1.0, 1.0, 1.0),
-                         Color(0.0, 0.0, 0.0));
+                         Color(1.0, 0.0, 0.0));
     Material GREEN_PLASTIC(0.1,
                          2.0,
                          1.0,
@@ -220,39 +225,51 @@ int main(int argc, const char* argv[])
                          Color(0.0, 0.0, 1.0),
                          Color(1.0, 1.0, 1.0),
                          Color(0.0, 0.0, 0.0));
-    Material GREEN_MATTE(0.1,
-                         2.0,
-                         0.0,
-                         0.0,
-                         0.0,
-                         Color(0.0, 1.0, 0.0),
-                         Color(0.0, 0.0, 0.0),
-                         Color(0.0, 0.0, 0.0));
+    Material BLUE_MATTE(0.1,
+                        2.0,
+                        0.0,
+                        0.0,
+                        0.0,
+                        Color(0.1, 0.1, 0.7),
+                        Color(0.0, 0.0, 0.0),
+                        Color(0.0, 0.0, 0.0));
+    Material YELLOW_MATTE(0.1,
+                          2.0,
+                          0.0,
+                          0.0,
+                          0.0,
+                          Color(1.0, 1.0, 0.0),
+                          Color(0.0, 0.0, 0.0),
+                          Color(0.0, 0.0, 0.0));
 
     vector<LightSource> lights;
     lights.push_back(LightSource(vec3(-500.0, 500.0, 500.0),
+                                 200.0,
                                  Color(1.0, 1.0, 1.0)));
-    lights.push_back(LightSource(vec3(-500.0, 500.0, -500.0),
-                                 Color(1.0, 1.0, 1.0)));
+    lights.push_back(LightSource(vec3(500.0, 500.0, -500.0),
+                                 50.0,
+                                 Color(0.0, 1.0, 1.0)));
     vector<Surface*> surfaces;
     surfaces.push_back(new Plane(vec3(0.0, -1.0, 0.0),
                                  vec3(0.0, 0.0, 0.0),
-                                 GREEN_MATTE));
+                                 YELLOW_MATTE));
     surfaces.push_back(new Sphere(vec3(300.0, 50.0, 0.0),
                                   50.0,
                                   RED_PLASTIC));
     surfaces.push_back(new Sphere(vec3(300.0, 50.0, -125.0),
                                   50.0,
                                   GREEN_PLASTIC));
-    surfaces.push_back(new Sphere(vec3(300.0, 50.0, 125.0),
+    surfaces.push_back(new Sphere(vec3(150.0, 50.0, 125.0),
                                   50.0,
                                   BLUE_PLASTIC));
 
     // position of eye
-    vec3 eye(-100.0, 50.0, 0.0);
+    //vec3 eye(100.0, 50.0, -300.0);
+    vec3 eye(-100.0, 50.0, 0);
 
     // where the eye is looking
-    vec3 looking_at(500.0, 25.0, 0.0);
+    //vec3 looking_at(500.0, 25.0, 200.0);
+    vec3 looking_at(500.0, 25.0, 0);
 
     // construct a basis at the screens center
     vec3 w = (eye - looking_at).normalize();
@@ -296,106 +313,131 @@ int main(int argc, const char* argv[])
                     // direction of ray
                     vec3 d = (p - eye).normalize();
 
-                    // find the object closest to the eye
-                    Intersection intersection;
-                    Intersection bestIntersection;
-                    for (vector<Surface*>::iterator surface = surfaces.begin();
-                         surface != surfaces.end();
-                         surface++) {
+                    vec3 f(RADIANCE_SCALE, RADIANCE_SCALE, RADIANCE_SCALE);
+                    vec3 o = eye;
+                    int reflectedRays = 0;
+                    for (int k = 0; k < MAX_REFLECTION_STEPS; k++) {
 
-                        if (!(*surface)->intersect(eye,
-                                                   d,
-                                                   numeric_limits<double>::infinity(),
-                                                   intersection)) {
-                            continue;
-                        }
-
-                        if (intersection.time() < bestIntersection.time()) {
-                            bestIntersection = intersection;
-                        }
-                    }
-
-                    // nothing more to do if we didn't get an intersection
-                    if (!bestIntersection.initialized()) {
-                        continue;
-                    }
-
-                    //pixel += Color(1.0, 1.0, 1.0);
-
-                    const Material& material = bestIntersection.material();
-                    if (material.ambientWeight() > 0.0) {
-                        pixel += RADIANCE_SCALE
-                               * material.ambientWeight()
-                               * AMBIENT_COLOR.mul(material.diffuseColor());
-                    }
-
-                    for (vector<LightSource>::iterator light = lights.begin();
-                         light != lights.end();
-                         light++) {
-
-                        if (d.dot(bestIntersection.normal()) >= 0) {
-                            // negate the direction of the normal
-                            bestIntersection.normal(-bestIntersection.normal());
-                        }
-
-                        const vec3& lightLoc = light->location();
-                        const Color& lightColor = light->color();
-                        vec3 l = (lightLoc - bestIntersection.hit()).normalize();
-
-                        double nDotl = l.dot(bestIntersection.normal());
-                        if (nDotl <= 0) {
-                            continue;
-                        }
-
-                        double maxTime = (lightLoc - bestIntersection.hit()).abs();
-
-                        // do a second pass across all objects in the scene,
-                        // and check if they shadow the object
-                        bool illuminated = true;
-                        Intersection lightIntersection;
+                        // find the object closest to the eye
+                        Intersection intersection;
+                        Intersection bestIntersection;
                         for (vector<Surface*>::iterator surface = surfaces.begin();
                              surface != surfaces.end();
                              surface++) {
 
-                            // a single object inbetween the current object,
-                            // and the light source is enough to shadow it
-                            if ((*surface)->intersect(bestIntersection.hit(),
-                                                      l,
-                                                      maxTime,
-                                                      lightIntersection)) {
+                            if (!(*surface)->intersect(o,
+                                                       d,
+                                                       numeric_limits<double>::infinity(),
+                                                       intersection)) {
+                                continue;
+                            }
 
-                                illuminated = false;
-                                break;
+                            if (intersection.time() < bestIntersection.time()) {
+                                bestIntersection = intersection;
                             }
                         }
 
-                        if (!illuminated) {
-                            continue;
+                        // nothing more to do if we didn't get an intersection
+                        if (!bestIntersection.initialized()) {
+                            break;
                         }
 
-                        // diffuse
-                        if (material.diffuseWeight() > 0) {
-                            pixel += RADIANCE_SCALE
-                                   * 1.0 / M_PI
-                                   * material.diffuseWeight()
-                                   * nDotl
-                                   * lightColor.mul(material.diffuseColor());
+                        //pixel += Color(1.0, 1.0, 1.0);
+
+                        const Material& material = bestIntersection.material();
+                        if (material.ambientWeight() > 0.0) {
+                            pixel += material.ambientWeight()
+                                   * f.mul(AMBIENT_COLOR.mul(material.diffuseColor()));
                         }
 
-                        // specular
-                        if (material.specularWeight() > 0) {
-                            vec3 r = 2.0 * nDotl * bestIntersection.normal() - l;
-                            double rDotMd = -r.dot(d);
-                            if (rDotMd > 0) {
-                                pixel += RADIANCE_SCALE
-                                       * pow(rDotMd, material.shininess())
-                                       * material.specularWeight()
+                        for (vector<LightSource>::iterator light = lights.begin();
+                             light != lights.end();
+                             light++) {
+
+                            if (d.dot(bestIntersection.normal()) >= 0) {
+                                // negate the direction of the normal
+                                bestIntersection.normal(-bestIntersection.normal());
+                            }
+
+                            double r1 = (random.next() - 0.5) * light->radius(),
+                                   r2 = (random.next() - 0.5) * light->radius(),
+                                   r3 = (random.next() - 0.5) * light->radius();
+                            const vec3& lightLoc = light->location()
+                                                 + vec3(r1, r2, r3);
+
+                            const Color& lightColor = light->color();
+                            vec3 l = (lightLoc - bestIntersection.hit()).normalize();
+
+                            double nDotl = l.dot(bestIntersection.normal());
+                            if (nDotl <= 0) {
+                                continue;
+                            }
+
+                            double maxTime = (lightLoc - bestIntersection.hit()).abs();
+
+                            // do a second pass across all objects in the scene,
+                            // and check if they shadow the object
+                            bool illuminated = true;
+                            Intersection lightIntersection;
+                            for (vector<Surface*>::iterator surface = surfaces.begin();
+                                 surface != surfaces.end();
+                                 surface++) {
+
+                                // a single object inbetween the current object,
+                                // and the light source is enough to shadow it
+                                if ((*surface)->intersect(bestIntersection.hit(),
+                                                          l,
+                                                          maxTime,
+                                                          lightIntersection)) {
+
+                                    illuminated = false;
+                                    break;
+                                }
+                            }
+
+                            if (!illuminated) {
+                                continue;
+                            }
+
+                            // diffuse
+                            if (material.diffuseWeight() > 0) {
+                                pixel += 1.0 / M_PI
+                                       * material.diffuseWeight()
                                        * nDotl
-                                       * lightColor.mul(material.highlightColor());
+                                       * f.mul(lightColor.mul(material.diffuseColor()));
+                            }
+
+                            // specular
+                            if (material.specularWeight() > 0) {
+                                vec3 r = 2.0 * nDotl * bestIntersection.normal() - l;
+                                double rDotMd = -r.dot(d);
+                                if (rDotMd > 0) {
+                                    pixel += pow(rDotMd, material.shininess())
+                                           * material.specularWeight()
+                                           * nDotl
+                                           * f.mul(lightColor.mul(material.highlightColor()));
+                                }
+                            }
+
+                            // reflection
+                            if (material.reflectionWeight() > 0) {
+                                f = material.reflectionWeight()
+                                  * f.mul(material.reflectionColor());
+                                if (f.x() > MIN_COLOR_INTENSITY ||
+                                    f.y() > MIN_COLOR_INTENSITY ||
+                                    f.z() > MIN_COLOR_INTENSITY) {
+
+                                    reflectedRays++;
+                                }
                             }
                         }
 
-                        // TODO: reflection
+                        if (reflectedRays == 0) {
+                            break;
+                        }
+
+                        d = d - (2.0*d.dot(bestIntersection.normal())) * bestIntersection.normal();
+                        o = bestIntersection.hit();
                     }
                 }
             }
