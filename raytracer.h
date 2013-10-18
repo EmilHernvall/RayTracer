@@ -3,6 +3,8 @@
 
 #include "vec3.h"
 
+#define EPSILON 0.000001
+
 class RandomDoubles {
 public:
     RandomDoubles(int seed, int count);
@@ -23,11 +25,26 @@ public:
     inline int r() const { return x(); }
     inline int g() const { return y(); }
     inline int b() const { return z(); }
+
+    inline int rgb() const {
+        double inv_gamma = 1.0/2.2;
+        int r = 0xFF * pow(x(), inv_gamma);
+        if (r > 0xFF) { r = 0xFF; }
+
+        int g = 0xFF * pow(y(), inv_gamma);
+        if (g > 0xFF) { g = 0xFF; }
+
+        int b = 0xFF * pow(z(), inv_gamma);
+        if (b > 0xFF) { b = 0xFF; }
+
+        return ((r & 0xFF) << 16) | ((g & 0xFF) << 8) | (b & 0xFF);
+    }
 };
 
 class LightSource {
 public:
     LightSource();
+    LightSource(const vec3&, const Color&);
 
     inline const vec3& location() const { return m_location; }
     inline const Color& color() const { return m_color; }
@@ -76,7 +93,7 @@ public:
     Intersection();
 
     inline bool initialized() const { return m_initialized; }
-    inline void initialize(bool initialized) { m_initialized = initialized; }
+    inline void initialized(bool initialized) { m_initialized = initialized; }
 
     inline double time() const { return m_time; }
     inline void time(double time) { m_time = time; }
@@ -100,9 +117,24 @@ private:
 
 class Surface {
 public:
-    virtual bool intersect(const vec3 origin,
+    virtual bool intersect(const vec3& origin,
                            const vec3& ray,
+                           double maxTime,
                            Intersection& result) = 0;
+};
+
+class Sphere : public Surface {
+public:
+    Sphere(const vec3&, int, const Material&);
+
+    virtual bool intersect(const vec3& origin,
+                           const vec3& ray,
+                           double maxTime,
+                           Intersection& result);
+private:
+    vec3 m_location;
+    int m_radius;
+    Material m_material;
 };
 
 #endif // __RAYTRACER_H

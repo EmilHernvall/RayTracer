@@ -4,6 +4,8 @@
 #include <ctime>
 #include <cmath>
 #include <limits>
+#include <gd.h>
+#include <cstdio>
 
 #include "raytracer.h"
 #include "vec3.h"
@@ -47,6 +49,18 @@ Color::Color(int r, int g, int b)
 {
 }
 
+LightSource::LightSource()
+    : m_location(vec3()),
+      m_color(Color())
+{
+}
+
+LightSource::LightSource(const vec3& location, const Color& color)
+    : m_location(location),
+      m_color(color)
+{
+}
+
 Material::Material()
     : m_ambientWeight(0.0),
       m_diffuseWeight(0.0),
@@ -86,16 +100,52 @@ Intersection::Intersection()
 {
 }
 
+Sphere::Sphere(const vec3& location, int radius, const Material& material)
+    : m_location(location),
+      m_radius(radius),
+      m_material(material)
+{
+}
+
+bool Sphere::intersect(const vec3& origin,
+                       const vec3& ray,
+                       double maxTime,
+                       Intersection& result)
+{
+    vec3 l = origin - m_location;
+    double B = 2.0 * ray.dot(l);
+    double C = pow(l.abs(),2) - m_radius * m_radius;
+    double square = B * B  - 4 * C;
+    if (square >= 0) {
+        double root = sqrt(square);
+        double t1 = 0.5 * (-B - root);
+        double t2 = 0.5 * (-B + root);
+
+        result.initialized(false);
+        if (t1 >= EPSILON && t1 <= maxTime) {
+            result.initialized(true);
+            result.time(t1);
+        }
+        else if (t2 >= EPSILON && t2 < maxTime) {
+            result.initialized(true);
+            result.time(t2);
+        }
+
+        if (result.initialized()) {
+            result.hit(origin + result.time() * ray);
+            result.normal((result.hit() - m_location).normalize());
+            result.material(m_material);
+            return true;
+        }
+    }
+
+    return false;
+}
+
 int main(int argc, const char* argv[])
 {
-    vector<LightSource> lights;
-    vector<Surface> surfaces;
     // source of randomness
     RandomDoubles random(time(NULL), 70001);
-    // position of eye
-    vec3 eye(-100.0, 0.0, 0.0);
-    // where the eye is looking
-    vec3 looking_at(0.0, 0.0, 0.0);
     // distance from eye to screen, in the direction towards looking_at
     double DISTANCE_TO_SCREEN = 50.0;
     // output size
@@ -105,10 +155,60 @@ int main(int argc, const char* argv[])
            SCREEN_HEIGHT = (IMAGE_HEIGHT * SCREEN_WIDTH) / IMAGE_WIDTH;
     // number of samples per pixel
     int SAMPLES = 25;
-    double SQRT_SAMPLES = sqrt(SAMPLES), INVERSE_SQRT_SAMPLES = 1.0/SQRT_SAMPLES;
+    double INVERSE_SAMPLES = 1.0/SAMPLES,
+           SQRT_SAMPLES = sqrt(SAMPLES),
+           INVERSE_SQRT_SAMPLES = 1.0/SQRT_SAMPLES;
     // color of ambient light
-    Color AMBIENT_COLOR;
+    Color AMBIENT_COLOR(1.0, 1.0, 1.0);
     double RADIANCE_SCALE = 1.0;
+
+    // setup target image
+    gdImage* img = gdImageCreateTrueColor(IMAGE_WIDTH, IMAGE_HEIGHT);
+
+    // define scene
+    Material RED_PLASTIC(0.1,
+                         2.0,
+                         1.0,
+                         0.0,
+                         10.0,
+                         Color(1.0, 0.0, 0.0),
+                         Color(1.0, 1.0, 1.0),
+                         Color(0.0, 0.0, 0.0));
+    Material GREEN_PLASTIC(0.1,
+                         2.0,
+                         1.0,
+                         0.0,
+                         10.0,
+                         Color(0.0, 1.0, 0.0),
+                         Color(1.0, 1.0, 1.0),
+                         Color(0.0, 0.0, 0.0));
+    Material BLUE_PLASTIC(0.1,
+                         2.0,
+                         1.0,
+                         0.0,
+                         10.0,
+                         Color(0.0, 0.0, 1.0),
+                         Color(1.0, 1.0, 1.0),
+                         Color(0.0, 0.0, 0.0));
+    vector<LightSource> lights;
+    lights.push_back(LightSource(vec3(-500.0, 500.0, 100.0),
+                                 Color(1.0, 1.0, 1.0)));
+    vector<Surface*> surfaces;
+    surfaces.push_back(new Sphere(vec3(100.0, 0.0, 0.0),
+                                  50.0,
+                                  RED_PLASTIC));
+    surfaces.push_back(new Sphere(vec3(100.0, 0.0, -125.0),
+                                  50.0,
+                                  GREEN_PLASTIC));
+    surfaces.push_back(new Sphere(vec3(100.0, 0.0, 125.0),
+                                  50.0,
+                                  BLUE_PLASTIC));
+
+    // position of eye
+    vec3 eye(-100.0, 0.0, 0.0);
+
+    // where the eye is looking
+    vec3 looking_at(0.0, 0.0, 0.0);
 
     // construct a basis at the screens center
     vec3 w = (eye - looking_at).normalize();
@@ -119,6 +219,8 @@ int main(int argc, const char* argv[])
     vec3 c = eye - DISTANCE_TO_SCREEN * w;
 
     for (int x = 0; x < IMAGE_WIDTH; x++) {
+        cout << x << " out of " << IMAGE_WIDTH << " done." << endl;
+
         for (int y = 0; y < IMAGE_HEIGHT; y++) {
 
             Color pixel;
@@ -153,16 +255,19 @@ int main(int argc, const char* argv[])
                     // find the object closest to the eye
                     Intersection intersection;
                     Intersection bestIntersection;
-                    for (vector<Surface>::iterator surface = surfaces.begin();
+                    for (vector<Surface*>::iterator surface = surfaces.begin();
                          surface != surfaces.end();
                          surface++) {
 
-                        if (!surface->intersect(eye, d, intersection)) {
+                        if (!(*surface)->intersect(eye,
+                                                d,
+                                                numeric_limits<double>::infinity(),
+                                                intersection)) {
                             continue;
                         }
 
                         if (intersection.time() < bestIntersection.time()) {
-                            intersection = bestIntersection;
+                            bestIntersection = intersection;
                         }
                     }
 
@@ -170,6 +275,8 @@ int main(int argc, const char* argv[])
                     if (!bestIntersection.initialized()) {
                         continue;
                     }
+
+                    //pixel += Color(1.0, 1.0, 1.0);
 
                     const Material& material = bestIntersection.material();
                     if (material.ambientWeight() > 0.0) {
@@ -202,14 +309,15 @@ int main(int argc, const char* argv[])
                         // and check if they shadow the object
                         bool illuminated = true;
                         Intersection lightIntersection;
-                        for (vector<Surface>::iterator surface = surfaces.begin();
+                        for (vector<Surface*>::iterator surface = surfaces.begin();
                              surface != surfaces.end();
                              surface++) {
 
                             // a single object inbetween the current object,
                             // and the light source is enough to shadow it
-                            if (surface->intersect(bestIntersection.hit(),
+                            if ((*surface)->intersect(bestIntersection.hit(),
                                                    lightLoc,
+                                                   maxTime,
                                                    lightIntersection)) {
 
                                 illuminated = false;
@@ -243,14 +351,20 @@ int main(int argc, const char* argv[])
                             }
                         }
 
-                        // reflection
+                        // TODO: reflection
                     }
                 }
             }
 
             // set pixel to color
+            pixel /= SAMPLES;
+            gdImageSetPixel(img, x, y, pixel.rgb());
         }
     }
+
+    FILE* outFh = fopen("test.png", "w");
+    gdImagePng(img, outFh);
+    gdImageDestroy(img);
 
     return 0;
 }

@@ -76,6 +76,30 @@ vec3& vec3::operator+=(const vec3& vec)
     return *this;
 }
 
+vec3& vec3::operator-=(const vec3& vec)
+{
+    m_x -= vec.x();
+    m_y -= vec.y();
+    m_z -= vec.z();
+    return *this;
+}
+
+vec3& vec3::operator*=(double a)
+{
+    m_x = a*m_x;
+    m_y = a*m_y;
+    m_z = a*m_z;
+    return *this;
+}
+
+vec3& vec3::operator/=(double a)
+{
+    m_x = m_x/a;
+    m_y = m_y/a;
+    m_z = m_z/a;
+    return *this;
+}
+
 const vec3 operator-(const vec3& a)
 {
     return vec3(-a.x(), -a.y(), -a.z());

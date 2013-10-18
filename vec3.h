@@ -38,6 +38,9 @@ public:
 public:
     vec3& operator=(const vec3&);
     vec3& operator+=(const vec3&);
+    vec3& operator-=(const vec3&);
+    vec3& operator*=(double a);
+    vec3& operator/=(double a);
 
 // private members
 private:
