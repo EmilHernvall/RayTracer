@@ -137,4 +137,18 @@ private:
     Material m_material;
 };
 
+class Plane : public Surface {
+public:
+    Plane(const vec3&, const vec3&, const Material&);
+
+    virtual bool intersect(const vec3& origin,
+                           const vec3& ray,
+                           double maxTime,
+                           Intersection& result);
+private:
+    vec3 m_normal;
+    vec3 m_point;
+    Material m_material;
+};
+
 #endif // __RAYTRACER_H

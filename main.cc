@@ -142,12 +142,42 @@ bool Sphere::intersect(const vec3& origin,
     return false;
 }
 
+Plane::Plane(const vec3& normal, const vec3& point, const Material& material)
+    : m_normal(normal),
+      m_point(point),
+      m_material(material)
+{
+}
+
+bool Plane::intersect(const vec3& origin,
+                       const vec3& ray,
+                       double maxTime,
+                       Intersection& result)
+{
+    if (ray.dot(m_normal) < EPSILON) {
+        return false;
+    }
+
+    double t = (m_point - origin).dot(m_normal) / ray.dot(m_normal);
+    if (t > maxTime) {
+        return false;
+    }
+
+    result.initialized(true);
+    result.time(t);
+    result.hit(origin + t * ray);
+    result.normal(m_normal);
+    result.material(m_material);
+
+    return true;
+}
+
 int main(int argc, const char* argv[])
 {
     // source of randomness
     RandomDoubles random(time(NULL), 70001);
     // distance from eye to screen, in the direction towards looking_at
-    double DISTANCE_TO_SCREEN = 50.0;
+    double DISTANCE_TO_SCREEN = 100.0;
     // output size
     int IMAGE_WIDTH = 1280, IMAGE_HEIGHT = 720;
     // virtual screen size
@@ -190,25 +220,39 @@ int main(int argc, const char* argv[])
                          Color(0.0, 0.0, 1.0),
                          Color(1.0, 1.0, 1.0),
                          Color(0.0, 0.0, 0.0));
+    Material GREEN_MATTE(0.1,
+                         2.0,
+                         0.0,
+                         0.0,
+                         0.0,
+                         Color(0.0, 1.0, 0.0),
+                         Color(0.0, 0.0, 0.0),
+                         Color(0.0, 0.0, 0.0));
+
     vector<LightSource> lights;
-    lights.push_back(LightSource(vec3(-500.0, 500.0, 100.0),
+    lights.push_back(LightSource(vec3(-500.0, 500.0, 500.0),
+                                 Color(1.0, 1.0, 1.0)));
+    lights.push_back(LightSource(vec3(-500.0, 500.0, -500.0),
                                  Color(1.0, 1.0, 1.0)));
     vector<Surface*> surfaces;
-    surfaces.push_back(new Sphere(vec3(100.0, 0.0, 0.0),
+    surfaces.push_back(new Plane(vec3(0.0, -1.0, 0.0),
+                                 vec3(0.0, 0.0, 0.0),
+                                 GREEN_MATTE));
+    surfaces.push_back(new Sphere(vec3(300.0, 50.0, 0.0),
                                   50.0,
                                   RED_PLASTIC));
-    surfaces.push_back(new Sphere(vec3(100.0, 0.0, -125.0),
+    surfaces.push_back(new Sphere(vec3(300.0, 50.0, -125.0),
                                   50.0,
                                   GREEN_PLASTIC));
-    surfaces.push_back(new Sphere(vec3(100.0, 0.0, 125.0),
+    surfaces.push_back(new Sphere(vec3(300.0, 50.0, 125.0),
                                   50.0,
                                   BLUE_PLASTIC));
 
     // position of eye
-    vec3 eye(-100.0, 0.0, 0.0);
+    vec3 eye(-100.0, 50.0, 0.0);
 
     // where the eye is looking
-    vec3 looking_at(0.0, 0.0, 0.0);
+    vec3 looking_at(500.0, 25.0, 0.0);
 
     // construct a basis at the screens center
     vec3 w = (eye - looking_at).normalize();
@@ -260,9 +304,9 @@ int main(int argc, const char* argv[])
                          surface++) {
 
                         if (!(*surface)->intersect(eye,
-                                                d,
-                                                numeric_limits<double>::infinity(),
-                                                intersection)) {
+                                                   d,
+                                                   numeric_limits<double>::infinity(),
+                                                   intersection)) {
                             continue;
                         }
 
@@ -316,9 +360,9 @@ int main(int argc, const char* argv[])
                             // a single object inbetween the current object,
                             // and the light source is enough to shadow it
                             if ((*surface)->intersect(bestIntersection.hit(),
-                                                   lightLoc,
-                                                   maxTime,
-                                                   lightIntersection)) {
+                                                      l,
+                                                      maxTime,
+                                                      lightIntersection)) {
 
                                 illuminated = false;
                                 break;
@@ -341,7 +385,7 @@ int main(int argc, const char* argv[])
                         // specular
                         if (material.specularWeight() > 0) {
                             vec3 r = 2.0 * nDotl * bestIntersection.normal() - l;
-                            double rDotMd = r.dot(d);
+                            double rDotMd = -r.dot(d);
                             if (rDotMd > 0) {
                                 pixel += RADIANCE_SCALE
                                        * pow(rDotMd, material.shininess())
