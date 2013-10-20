@@ -20,11 +20,7 @@ private:
 class Color : public vec3 {
 public:
     Color();
-    Color(int r, int g, int b);
-
-    inline int r() const { return x(); }
-    inline int g() const { return y(); }
-    inline int b() const { return z(); }
+    Color(double r, double g, double b);
 
     inline int rgb() const {
         double inv_gamma = 1.0/2.2;

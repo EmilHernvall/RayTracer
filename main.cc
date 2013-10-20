@@ -44,7 +44,7 @@ Color::Color()
 {
 }
 
-Color::Color(int r, int g, int b)
+Color::Color(double r, double g, double b)
     : vec3(r, g, b)
 {
 }
@@ -174,6 +174,55 @@ bool Plane::intersect(const vec3& origin,
     return true;
 }
 
+Material createMetal(const Color& color)
+{
+    return Material(0.1,
+                    0.7,
+                    0.3,
+                    0.9,
+                    1.0,
+                    color,
+                    color,
+                    color);
+}
+
+Material createPolishedMetal(const Color& color)
+{
+    return Material(0.0,
+                    0.0,
+                    0.0,
+                    1.0,
+                    1.0,
+                    color,
+                    color,
+                    color);
+}
+
+Material createPlastic(const Color& color)
+{
+    return Material(0.1,
+                    2.0,
+                    1.0,
+                    0.0,
+                    10.0,
+                    color,
+                    Color(1.0, 1.0, 1.0),
+                    Color(0.0, 0.0, 0.0));
+}
+
+Material createMatte(const Color& color)
+{
+    return Material(0.1,
+                    1.0,
+                    0.0,
+                    0.0,
+                    0.0,
+                    color,
+                    Color(0.0, 0.0, 0.0),
+                    Color(0.0, 0.0, 0.0));
+
+}
+
 int main(int argc, const char* argv[])
 {
     // source of randomness
@@ -181,7 +230,7 @@ int main(int argc, const char* argv[])
     // distance from eye to screen, in the direction towards looking_at
     double DISTANCE_TO_SCREEN = 100.0;
     // output size
-    int IMAGE_WIDTH = 640, IMAGE_HEIGHT = 480;
+    int IMAGE_WIDTH = 1920, IMAGE_HEIGHT = 1080;
     // virtual screen size
     double SCREEN_WIDTH = 100.0,
            SCREEN_HEIGHT = (IMAGE_HEIGHT * SCREEN_WIDTH) / IMAGE_WIDTH;
@@ -191,7 +240,7 @@ int main(int argc, const char* argv[])
            SQRT_SAMPLES = sqrt(SAMPLES),
            INVERSE_SQRT_SAMPLES = 1.0/SQRT_SAMPLES;
     // max number of reflection steps
-    int MAX_REFLECTION_STEPS = 25;
+    int MAX_REFLECTION_STEPS = 10;
     double MIN_COLOR_INTENSITY = 1.0 / 256.0;
     // color of ambient light
     Color AMBIENT_COLOR(1.0, 1.0, 1.0);
@@ -201,46 +250,14 @@ int main(int argc, const char* argv[])
     gdImage* img = gdImageCreateTrueColor(IMAGE_WIDTH, IMAGE_HEIGHT);
 
     // define scene
-    Material RED_PLASTIC(0.1,
-                         0.7,
-                         0.3,
-                         1.0,
-                         1.0,
-                         Color(1.0, 0.0, 0.0),
-                         Color(1.0, 1.0, 1.0),
-                         Color(1.0, 0.0, 0.0));
-    Material GREEN_PLASTIC(0.1,
-                         2.0,
-                         1.0,
-                         0.0,
-                         10.0,
-                         Color(0.0, 1.0, 0.0),
-                         Color(1.0, 1.0, 1.0),
-                         Color(0.0, 0.0, 0.0));
-    Material BLUE_PLASTIC(0.1,
-                         2.0,
-                         1.0,
-                         0.0,
-                         10.0,
-                         Color(0.0, 0.0, 1.0),
-                         Color(1.0, 1.0, 1.0),
-                         Color(0.0, 0.0, 0.0));
-    Material BLUE_MATTE(0.1,
-                        2.0,
-                        0.0,
-                        0.0,
-                        0.0,
-                        Color(0.1, 0.1, 0.7),
-                        Color(0.0, 0.0, 0.0),
-                        Color(0.0, 0.0, 0.0));
-    Material YELLOW_MATTE(0.1,
-                          2.0,
-                          0.0,
-                          0.0,
-                          0.0,
-                          Color(1.0, 1.0, 0.0),
-                          Color(0.0, 0.0, 0.0),
-                          Color(0.0, 0.0, 0.0));
+    Material MIRROR = createPolishedMetal(Color(1.0, 1.0, 1.0));
+    Material RED_METAL = createMetal(Color(1.0, 0.0, 0.0));
+    Material GREEN_PLASTIC = createPlastic(Color(0.0, 1.0, 0.0));
+    Material GREEN_METAL = createMetal(Color(0.0, 1.0, 0.0));
+    Material BLUE_PLASTIC = createPlastic(Color(0.0, 0.0, 1.0));
+    Material BLUE_METAL = createMetal(Color(0.0, 0.0, 1.0));
+    Material YELLOW_MATTE = createMatte(Color(1.0, 1.0, 0.0));
+    Material BLUE_MATTE = createMatte(Color(0.1, 0.1, 0.7));
 
     vector<LightSource> lights;
     lights.push_back(LightSource(vec3(-500.0, 500.0, 500.0),
@@ -253,19 +270,22 @@ int main(int argc, const char* argv[])
     surfaces.push_back(new Plane(vec3(0.0, -1.0, 0.0),
                                  vec3(0.0, 0.0, 0.0),
                                  YELLOW_MATTE));
+    surfaces.push_back(new Sphere(vec3(0.0, 0.0, 0.0),
+                                  10000.0,
+                                  BLUE_MATTE));
     surfaces.push_back(new Sphere(vec3(300.0, 50.0, 0.0),
                                   50.0,
-                                  RED_PLASTIC));
-    surfaces.push_back(new Sphere(vec3(300.0, 50.0, -125.0),
+                                  MIRROR));
+    surfaces.push_back(new Sphere(vec3(250.0, 50.0, -125.0),
                                   50.0,
-                                  GREEN_PLASTIC));
-    surfaces.push_back(new Sphere(vec3(150.0, 50.0, 125.0),
+                                  GREEN_METAL));
+    surfaces.push_back(new Sphere(vec3(250.0, 50.0, 125.0),
                                   50.0,
-                                  BLUE_PLASTIC));
+                                  RED_METAL));
 
     // position of eye
     //vec3 eye(100.0, 50.0, -300.0);
-    vec3 eye(-100.0, 50.0, 0);
+    vec3 eye(-150.0, 75.0, 0);
 
     // where the eye is looking
     //vec3 looking_at(500.0, 25.0, 200.0);
@@ -310,12 +330,11 @@ int main(int argc, const char* argv[])
                     // point on the virtual screen
                     vec3 p = c + (a * u) + (b * v);
 
-                    // direction of ray
+                    // pew, pew, pew
                     vec3 d = (p - eye).normalize();
 
                     vec3 f(RADIANCE_SCALE, RADIANCE_SCALE, RADIANCE_SCALE);
                     vec3 o = eye;
-                    int reflectedRays = 0;
                     for (int k = 0; k < MAX_REFLECTION_STEPS; k++) {
 
                         // find the object closest to the eye
@@ -401,8 +420,7 @@ int main(int argc, const char* argv[])
 
                             // diffuse
                             if (material.diffuseWeight() > 0) {
-                                pixel += 1.0 / M_PI
-                                       * material.diffuseWeight()
+                                pixel += material.diffuseWeight()
                                        * nDotl
                                        * f.mul(lightColor.mul(material.diffuseColor()));
                             }
@@ -418,32 +436,31 @@ int main(int argc, const char* argv[])
                                            * f.mul(lightColor.mul(material.highlightColor()));
                                 }
                             }
-
-                            // reflection
-                            if (material.reflectionWeight() > 0) {
-                                f = material.reflectionWeight()
-                                  * f.mul(material.reflectionColor());
-                                if (f.x() > MIN_COLOR_INTENSITY ||
-                                    f.y() > MIN_COLOR_INTENSITY ||
-                                    f.z() > MIN_COLOR_INTENSITY) {
-
-                                    reflectedRays++;
-                                }
-                            }
                         }
 
-                        if (reflectedRays == 0) {
+                        // reflection
+                        if (material.reflectionWeight() > 0) {
+                            f = material.reflectionWeight()
+                              * f.mul(material.reflectionColor());
+                            if (f.x() < MIN_COLOR_INTENSITY &&
+                                f.y() < MIN_COLOR_INTENSITY &&
+                                f.z() < MIN_COLOR_INTENSITY) {
+
+                                break;
+                            }
+
+                            const vec3& n = bestIntersection.normal();
+                            d = d - (2.0*d.dot(n)) * n;
+                            o = bestIntersection.hit();
+                        } else {
                             break;
                         }
-
-                        d = d - (2.0*d.dot(bestIntersection.normal())) * bestIntersection.normal();
-                        o = bestIntersection.hit();
                     }
                 }
             }
 
             // set pixel to color
-            pixel /= SAMPLES;
+            pixel /= SAMPLES * lights.size();
             gdImageSetPixel(img, x, y, pixel.rgb());
         }
     }
