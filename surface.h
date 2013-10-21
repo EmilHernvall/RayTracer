@@ -3,6 +3,7 @@
 
 #include "vec3.h"
 #include "material.h"
+#include <gd.h>
 
 class Intersection {
 public:
@@ -51,6 +52,21 @@ private:
     vec3 m_location;
     int m_radius;
     Material m_material;
+};
+
+class Planet : public Surface {
+public:
+    Planet(const vec3&, int, const Material&, const char* map);
+
+    virtual bool intersect(const vec3& origin,
+                           const vec3& ray,
+                           double maxTime,
+                           Intersection& result);
+private:
+    vec3 m_location;
+    int m_radius;
+    Material m_material;
+    gdImage* m_img;
 };
 
 class Plane : public Surface {

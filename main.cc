@@ -24,12 +24,12 @@ int main(int argc, const char* argv[])
     // distance from eye to screen, in the direction towards looking_at
     double DISTANCE_TO_SCREEN = 100.0;
     // output size
-    int IMAGE_WIDTH = 640, IMAGE_HEIGHT = 480;
+    int IMAGE_WIDTH = 1920, IMAGE_HEIGHT = 1080;
     // virtual screen size
     double SCREEN_WIDTH = 100.0,
            SCREEN_HEIGHT = (IMAGE_HEIGHT * SCREEN_WIDTH) / IMAGE_WIDTH;
     // number of samples per pixel
-    int SAMPLES = 100;
+    int SAMPLES = 9;
     double INVERSE_SAMPLES = 1.0/SAMPLES,
            SQRT_SAMPLES = sqrt(SAMPLES),
            INVERSE_SQRT_SAMPLES = 1.0/SQRT_SAMPLES;
@@ -54,47 +54,21 @@ int main(int argc, const char* argv[])
     Material BLUE_MATTE = createMatte(Color(0.1, 0.1, 0.7));
 
     vector<LightSource> lights;
-    lights.push_back(LightSource(vec3(-500.0, 500.0, 500.0),
-                                 200.0,
-                                 Color(1.0, 1.0, 1.0)));
-    lights.push_back(LightSource(vec3(500.0, 500.0, -500.0),
-                                 50.0,
-                                 Color(0.0, 1.0, 1.0)));
+    lights.push_back(LightSource(vec3(500.0, 0.0, 500.0),
+                                 10.0,
+                                 Color(1.0, 1.0, 0.5)));
     vector<Surface*> surfaces;
-    surfaces.push_back(new Plane(vec3(0.0, -1.0, 0.0),
-                                 vec3(0.0, 0.0, 0.0),
-                                 YELLOW_MATTE));
-    surfaces.push_back(new Sphere(vec3(0.0, 0.0, 0.0),
-                                  10000.0,
-                                  BLUE_MATTE));
-    surfaces.push_back(new Sphere(vec3(300.0, 50.0, 0.0),
-                                  50.0,
-                                  MIRROR));
-    surfaces.push_back(new Sphere(vec3(300.0, 50.0, -125.0),
-                                  50.0,
-                                  RED_METAL));
-    surfaces.push_back(new Sphere(vec3(300.0, 50.0, 125.0),
-                                  50.0,
-                                  GREEN_PLASTIC));
-
-    surfaces.push_back(new Triangle(vec3(400.0, 0.0, -300.0),
-                                    vec3(0.0, 300.0, 0.0),
-                                    vec3(0.0, 0, 600.0),
-                                    MIRROR));
-    surfaces.push_back(new Triangle(vec3(400.0, 300.0, 300.0),
-                                    vec3(0.0, -300.0, 0.0),
-                                    vec3(0.0, 0, -600.0),
-                                    MIRROR));
+    surfaces.push_back(new Planet(vec3(0.0, 0.0, 0.0),
+                                  100.0,
+                                  BLUE_MATTE,
+                                  "map.png"));
 
     // position of eye
-    //vec3 eye(100.0, 50.0, -300.0);
-    //vec3 eye(-150.0, 75.0, 0);
-    vec3 eye(-100.0, 250.0, -300.0);
+    double theta = M_PI - 5.0 * M_PI / 5.0;
+    vec3 eye(400*cos(theta), 100.0, 400*sin(theta));
 
     // where the eye is looking
-    //vec3 looking_at(500.0, 25.0, 200.0);
-    //vec3 looking_at(500.0, 25.0, 0);
-    vec3 looking_at(650.0, 25.0, 200.0);
+    vec3 looking_at(0.0, 0.0, 0);
 
     // construct a basis at the screens center
     vec3 w = (eye - looking_at).normalize();

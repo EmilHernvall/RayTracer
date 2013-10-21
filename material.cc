@@ -70,7 +70,7 @@ Material createPlastic(const Color& color)
 Material createMatte(const Color& color)
 {
     return Material(0.1,
-                    1.0,
+                    2.0,
                     0.0,
                     0.0,
                     0.0,

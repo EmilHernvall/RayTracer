@@ -24,8 +24,13 @@ public:
     inline double shininess() const { return m_shininess; }
 
     inline const Color& diffuseColor() const { return m_diffuseColor; }
+    inline void diffuseColor(const Color& v) { m_diffuseColor = v; }
+
     inline const Color& highlightColor() const { return m_highlightColor; }
+    inline void highlightColor(const Color& v) { m_highlightColor = v; }
+
     inline const Color& reflectionColor() const { return m_reflectionColor; }
+    inline void reflectionColor(const Color& v) { m_reflectionColor = v; }
 
 private:
     double m_ambientWeight;

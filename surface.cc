@@ -1,5 +1,6 @@
 #include <limits>
 #include <cmath>
+#include <iostream>
 
 #include "raytracer.h"
 #include "surface.h"
@@ -47,6 +48,75 @@ bool Sphere::intersect(const vec3& origin,
 
         if (result.initialized()) {
             result.hit(origin + result.time() * ray);
+            result.normal((result.hit() - m_location).normalize());
+            result.material(m_material);
+            return true;
+        }
+    }
+
+    return false;
+}
+
+Planet::Planet(const vec3& location,
+               int radius,
+               const Material& material,
+               const char* map)
+    : m_location(location),
+      m_radius(radius),
+      m_material(material),
+      m_img(NULL)
+{
+    FILE* fh = fopen(map, "r");
+    m_img = gdImageCreateFromPng(fh);
+    fclose(fh);
+}
+
+bool Planet::intersect(const vec3& origin,
+                       const vec3& ray,
+                       double maxTime,
+                       Intersection& result)
+{
+    vec3 l = origin - m_location;
+    double B = 2.0 * ray.dot(l);
+    double C = pow(l.abs(),2) - m_radius * m_radius;
+    double square = B * B  - 4 * C;
+    if (square >= 0) {
+        double root = sqrt(square);
+        double t1 = 0.5 * (-B - root);
+        double t2 = 0.5 * (-B + root);
+
+        result.initialized(false);
+        if (t1 >= EPSILON && t1 <= maxTime) {
+            result.initialized(true);
+            result.time(t1);
+        }
+        else if (t2 >= EPSILON && t2 < maxTime) {
+            result.initialized(true);
+            result.time(t2);
+        }
+
+        if (result.initialized()) {
+            vec3 hit = origin + result.time() * ray;
+            vec3 pos = hit - m_location;
+            double theta = acos(pos.z() / m_radius);
+            double phi = atan(pos.y() / pos.x());
+
+            //theta = fmod(theta - M_PI/2, M_PI);
+
+            int mapWidth = gdImageSX(m_img);
+            int mapHeight = gdImageSY(m_img);
+
+            int mapX = (int)(theta*mapWidth/(M_PI));
+            int mapY = (int)(mapHeight/2.0 - phi*mapHeight/(M_PI));
+
+            int color = gdImageGetPixel(m_img, mapX, mapY);
+            double r = ((color >> 16) & 0xFF) / (double)0xFF;
+            double g = ((color >> 8) & 0xFF) / (double)0xFF;
+            double b = (color & 0xFF) / (double)0xFF;
+
+            m_material.diffuseColor(Color(r, g, b));
+
+            result.hit(hit);
             result.normal((result.hit() - m_location).normalize());
             result.material(m_material);
             return true;
