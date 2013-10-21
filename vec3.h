@@ -23,6 +23,7 @@ public:
 
     // calculate the absolute value of this vector
     double abs() const;
+    double abs2() const;
 
     // return a unit vector
     vec3 normalize() const;

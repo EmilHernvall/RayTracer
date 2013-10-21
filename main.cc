@@ -70,20 +70,31 @@ int main(int argc, const char* argv[])
     surfaces.push_back(new Sphere(vec3(300.0, 50.0, 0.0),
                                   50.0,
                                   MIRROR));
-    surfaces.push_back(new Sphere(vec3(250.0, 50.0, -125.0),
-                                  50.0,
-                                  GREEN_PLASTIC));
-    surfaces.push_back(new Sphere(vec3(250.0, 50.0, 125.0),
+    surfaces.push_back(new Sphere(vec3(300.0, 50.0, -125.0),
                                   50.0,
                                   RED_METAL));
+    surfaces.push_back(new Sphere(vec3(300.0, 50.0, 125.0),
+                                  50.0,
+                                  GREEN_PLASTIC));
+
+    surfaces.push_back(new Triangle(vec3(400.0, 0.0, -300.0),
+                                    vec3(0.0, 300.0, 0.0),
+                                    vec3(0.0, 0, 600.0),
+                                    MIRROR));
+    surfaces.push_back(new Triangle(vec3(400.0, 300.0, 300.0),
+                                    vec3(0.0, -300.0, 0.0),
+                                    vec3(0.0, 0, -600.0),
+                                    MIRROR));
 
     // position of eye
     //vec3 eye(100.0, 50.0, -300.0);
-    vec3 eye(-150.0, 75.0, 0);
+    //vec3 eye(-150.0, 75.0, 0);
+    vec3 eye(-100.0, 250.0, -300.0);
 
     // where the eye is looking
     //vec3 looking_at(500.0, 25.0, 200.0);
-    vec3 looking_at(500.0, 25.0, 0);
+    //vec3 looking_at(500.0, 25.0, 0);
+    vec3 looking_at(650.0, 25.0, 200.0);
 
     // construct a basis at the screens center
     vec3 w = (eye - looking_at).normalize();

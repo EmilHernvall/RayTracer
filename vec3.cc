@@ -26,7 +26,12 @@ vec3::vec3(double x, double y, double z)
 
 double vec3::abs() const
 {
-    return sqrt(m_x*m_x + m_y*m_y + m_z*m_z);
+    return sqrt(abs2());
+}
+
+double vec3::abs2() const
+{
+    return m_x*m_x + m_y*m_y + m_z*m_z;
 }
 
 vec3 vec3::normalize() const

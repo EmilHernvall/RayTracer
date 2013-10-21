@@ -67,4 +67,20 @@ private:
     Material m_material;
 };
 
+class Triangle : public Surface {
+public:
+    Triangle(const vec3&, const vec3&, const vec3&, const Material&);
+
+    virtual bool intersect(const vec3& origin,
+                           const vec3& ray,
+                           double maxTime,
+                           Intersection& result);
+private:
+    vec3 m_location;
+    vec3 m_a;
+    vec3 m_b;
+    vec3 m_normal;
+    Material m_material;
+};
+
 #endif // __SURFACE_H_
