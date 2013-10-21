@@ -56,7 +56,7 @@ private:
 
 class Planet : public Surface {
 public:
-    Planet(const vec3&, int, const Material&, const char* map);
+    Planet(const vec3&, int, const Material&, const char* map, double theta0);
 
     virtual bool intersect(const vec3& origin,
                            const vec3& ray,
@@ -67,6 +67,7 @@ private:
     int m_radius;
     Material m_material;
     gdImage* m_img;
+    double m_theta0;
 };
 
 class Plane : public Surface {

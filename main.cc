@@ -24,7 +24,7 @@ int main(int argc, const char* argv[])
     // distance from eye to screen, in the direction towards looking_at
     double DISTANCE_TO_SCREEN = 100.0;
     // output size
-    int IMAGE_WIDTH = 1920, IMAGE_HEIGHT = 1080;
+    int IMAGE_WIDTH = 1280, IMAGE_HEIGHT = 720;
     // virtual screen size
     double SCREEN_WIDTH = 100.0,
            SCREEN_HEIGHT = (IMAGE_HEIGHT * SCREEN_WIDTH) / IMAGE_WIDTH;
@@ -40,8 +40,14 @@ int main(int argc, const char* argv[])
     Color AMBIENT_COLOR(1.0, 1.0, 1.0);
     double RADIANCE_SCALE = 1.0;
 
+    int num_frames = 100;
+    for (int nr = 0; nr < num_frames; nr++) {
+
+    cout << "rendering frame " << nr << endl;
+
     // setup target image
     gdImage* img = gdImageCreateTrueColor(IMAGE_WIDTH, IMAGE_HEIGHT);
+    gdImageFill(img, 0, 0, 0);
 
     // define scene
     Material MIRROR = createPolishedMetal(Color(0.90, 0.90, 0.90));
@@ -61,7 +67,8 @@ int main(int argc, const char* argv[])
     surfaces.push_back(new Planet(vec3(0.0, 0.0, 0.0),
                                   100.0,
                                   BLUE_MATTE,
-                                  "map.png"));
+                                  "map.png",
+                                  nr*M_PI/num_frames));
 
     // position of eye
     double theta = M_PI - 5.0 * M_PI / 5.0;
@@ -79,7 +86,7 @@ int main(int argc, const char* argv[])
     vec3 c = eye - DISTANCE_TO_SCREEN * w;
 
     for (int x = 0; x < IMAGE_WIDTH; x++) {
-        cout << x << " out of " << IMAGE_WIDTH << " done." << endl;
+        //cout << x << " out of " << IMAGE_WIDTH << " done." << endl;
 
         for (int y = 0; y < IMAGE_HEIGHT; y++) {
 
@@ -244,9 +251,14 @@ int main(int argc, const char* argv[])
         }
     }
 
-    FILE* outFh = fopen("test.png", "w");
+    char out_name[256];
+    sprintf(out_name, "earth/earth%02d.png", nr);
+
+    FILE* outFh = fopen(out_name, "w");
     gdImagePng(img, outFh);
     gdImageDestroy(img);
+
+    }
 
     return 0;
 }

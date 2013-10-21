@@ -60,11 +60,13 @@ bool Sphere::intersect(const vec3& origin,
 Planet::Planet(const vec3& location,
                int radius,
                const Material& material,
-               const char* map)
+               const char* map,
+               double theta0)
     : m_location(location),
       m_radius(radius),
       m_material(material),
-      m_img(NULL)
+      m_img(NULL),
+      m_theta0(theta0)
 {
     FILE* fh = fopen(map, "r");
     m_img = gdImageCreateFromPng(fh);
@@ -101,7 +103,7 @@ bool Planet::intersect(const vec3& origin,
             double theta = acos(pos.z() / m_radius);
             double phi = atan(pos.y() / pos.x());
 
-            //theta = fmod(theta - M_PI/2, M_PI);
+            theta = fmod(theta + m_theta0, M_PI);
 
             int mapWidth = gdImageSX(m_img);
             int mapHeight = gdImageSY(m_img);
