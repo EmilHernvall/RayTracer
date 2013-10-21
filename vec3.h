@@ -1,6 +1,8 @@
 #ifndef __VEC3_H
 #define __VEC3_H
 
+#include <string>
+
 class vec3 {
 
 // constructors

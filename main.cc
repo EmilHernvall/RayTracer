@@ -9,219 +9,13 @@
 
 #include "raytracer.h"
 #include "vec3.h"
+#include "random.h"
+#include "color.h"
+#include "material.h"
+#include "lightsource.h"
+#include "surface.h"
 
 using namespace std;
-
-RandomDoubles::RandomDoubles(int seed, int count)
-    : m_count(count),
-      m_index(0),
-      m_values(new double[count])
-{
-    srand(seed);
-    for (int i = 0; i < count; i++) {
-        m_values[i] = rand() / (double)RAND_MAX;
-    }
-
-    m_index = (int)(count * (rand() / (double)RAND_MAX));
-}
-
-double RandomDoubles::next()
-{
-    if (m_index >= m_count) {
-        m_index = 0;
-    }
-
-    return m_values[m_index++];
-}
-
-RandomDoubles::~RandomDoubles()
-{
-    delete[] m_values;
-}
-
-Color::Color()
-    : vec3()
-{
-}
-
-Color::Color(double r, double g, double b)
-    : vec3(r, g, b)
-{
-}
-
-LightSource::LightSource()
-    : m_location(vec3()),
-      m_radius(0.0),
-      m_color(Color())
-{
-}
-
-LightSource::LightSource(const vec3& location, double radius, const Color& color)
-    : m_location(location),
-      m_radius(radius),
-      m_color(color)
-{
-}
-
-Material::Material()
-    : m_ambientWeight(0.0),
-      m_diffuseWeight(0.0),
-      m_specularWeight(0.0),
-      m_reflectionWeight(0.0),
-      m_shininess(0.0),
-      m_diffuseColor(Color()),
-      m_highlightColor(Color()),
-      m_reflectionColor(Color())
-{
-}
-
-Material::Material(double ambientWeight,
-                   double diffuseWeight,
-                   double specularWeight,
-                   double reflectionWeight,
-                   double shininess,
-                   const Color& diffuseColor,
-                   const Color& highlightColor,
-                   const Color& reflectionColor)
-    : m_ambientWeight(ambientWeight),
-      m_diffuseWeight(diffuseWeight),
-      m_specularWeight(specularWeight),
-      m_reflectionWeight(reflectionWeight),
-      m_shininess(shininess),
-      m_diffuseColor(diffuseColor),
-      m_highlightColor(highlightColor),
-      m_reflectionColor(reflectionColor)
-{
-}
-
-Intersection::Intersection()
-    : m_initialized(false),
-      m_time(numeric_limits<double>::infinity()),
-      m_hit(vec3()),
-      m_normal(vec3())
-{
-}
-
-Sphere::Sphere(const vec3& location, int radius, const Material& material)
-    : m_location(location),
-      m_radius(radius),
-      m_material(material)
-{
-}
-
-bool Sphere::intersect(const vec3& origin,
-                       const vec3& ray,
-                       double maxTime,
-                       Intersection& result)
-{
-    vec3 l = origin - m_location;
-    double B = 2.0 * ray.dot(l);
-    double C = pow(l.abs(),2) - m_radius * m_radius;
-    double square = B * B  - 4 * C;
-    if (square >= 0) {
-        double root = sqrt(square);
-        double t1 = 0.5 * (-B - root);
-        double t2 = 0.5 * (-B + root);
-
-        result.initialized(false);
-        if (t1 >= EPSILON && t1 <= maxTime) {
-            result.initialized(true);
-            result.time(t1);
-        }
-        else if (t2 >= EPSILON && t2 < maxTime) {
-            result.initialized(true);
-            result.time(t2);
-        }
-
-        if (result.initialized()) {
-            result.hit(origin + result.time() * ray);
-            result.normal((result.hit() - m_location).normalize());
-            result.material(m_material);
-            return true;
-        }
-    }
-
-    return false;
-}
-
-Plane::Plane(const vec3& normal, const vec3& point, const Material& material)
-    : m_normal(normal),
-      m_point(point),
-      m_material(material)
-{
-}
-
-bool Plane::intersect(const vec3& origin,
-                       const vec3& ray,
-                       double maxTime,
-                       Intersection& result)
-{
-    if (ray.dot(m_normal) < EPSILON) {
-        return false;
-    }
-
-    double t = (m_point - origin).dot(m_normal) / ray.dot(m_normal);
-    if (t > maxTime) {
-        return false;
-    }
-
-    result.initialized(true);
-    result.time(t);
-    result.hit(origin + t * ray);
-    result.normal(m_normal);
-    result.material(m_material);
-
-    return true;
-}
-
-Material createMetal(const Color& color)
-{
-    return Material(0.1,
-                    0.7,
-                    0.3,
-                    0.9,
-                    1.0,
-                    color,
-                    color,
-                    color);
-}
-
-Material createPolishedMetal(const Color& color)
-{
-    return Material(0.0,
-                    0.0,
-                    0.0,
-                    1.0,
-                    1.0,
-                    color,
-                    color,
-                    color);
-}
-
-Material createPlastic(const Color& color)
-{
-    return Material(0.1,
-                    2.0,
-                    1.0,
-                    0.0,
-                    10.0,
-                    color,
-                    Color(1.0, 1.0, 1.0),
-                    Color(0.0, 0.0, 0.0));
-}
-
-Material createMatte(const Color& color)
-{
-    return Material(0.1,
-                    1.0,
-                    0.0,
-                    0.0,
-                    0.0,
-                    color,
-                    Color(0.0, 0.0, 0.0),
-                    Color(0.0, 0.0, 0.0));
-
-}
 
 int main(int argc, const char* argv[])
 {
@@ -230,7 +24,7 @@ int main(int argc, const char* argv[])
     // distance from eye to screen, in the direction towards looking_at
     double DISTANCE_TO_SCREEN = 100.0;
     // output size
-    int IMAGE_WIDTH = 1920, IMAGE_HEIGHT = 1080;
+    int IMAGE_WIDTH = 640, IMAGE_HEIGHT = 480;
     // virtual screen size
     double SCREEN_WIDTH = 100.0,
            SCREEN_HEIGHT = (IMAGE_HEIGHT * SCREEN_WIDTH) / IMAGE_WIDTH;
@@ -250,7 +44,7 @@ int main(int argc, const char* argv[])
     gdImage* img = gdImageCreateTrueColor(IMAGE_WIDTH, IMAGE_HEIGHT);
 
     // define scene
-    Material MIRROR = createPolishedMetal(Color(1.0, 1.0, 1.0));
+    Material MIRROR = createPolishedMetal(Color(0.90, 0.90, 0.90));
     Material RED_METAL = createMetal(Color(1.0, 0.0, 0.0));
     Material GREEN_PLASTIC = createPlastic(Color(0.0, 1.0, 0.0));
     Material GREEN_METAL = createMetal(Color(0.0, 1.0, 0.0));
@@ -278,7 +72,7 @@ int main(int argc, const char* argv[])
                                   MIRROR));
     surfaces.push_back(new Sphere(vec3(250.0, 50.0, -125.0),
                                   50.0,
-                                  GREEN_METAL));
+                                  GREEN_PLASTIC));
     surfaces.push_back(new Sphere(vec3(250.0, 50.0, 125.0),
                                   50.0,
                                   RED_METAL));
