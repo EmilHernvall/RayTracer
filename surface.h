@@ -34,6 +34,8 @@ private:
 
 class Surface {
 public:
+    virtual ~Surface();
+
     virtual bool intersect(const vec3& origin,
                            const vec3& ray,
                            double maxTime,
@@ -56,7 +58,14 @@ private:
 
 class Planet : public Surface {
 public:
-    Planet(const vec3&, int, const Material&, const char* map, double theta0);
+    Planet(const vec3&,
+           int,
+           const Material&,
+           gdImage*,
+           gdImage*,
+           gdImage*,
+           double theta0);
+    virtual ~Planet();
 
     virtual bool intersect(const vec3& origin,
                            const vec3& ray,
@@ -66,6 +75,8 @@ private:
     vec3 m_location;
     int m_radius;
     Material m_material;
+    gdImage* m_ambient;
+    gdImage* m_specular;
     gdImage* m_img;
     double m_theta0;
 };

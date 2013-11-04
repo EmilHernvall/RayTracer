@@ -24,12 +24,12 @@ int main(int argc, const char* argv[])
     // distance from eye to screen, in the direction towards looking_at
     double DISTANCE_TO_SCREEN = 100.0;
     // output size
-    int IMAGE_WIDTH = 1280, IMAGE_HEIGHT = 720;
+    int IMAGE_WIDTH = 2560, IMAGE_HEIGHT = 1440;
     // virtual screen size
     double SCREEN_WIDTH = 100.0,
            SCREEN_HEIGHT = (IMAGE_HEIGHT * SCREEN_WIDTH) / IMAGE_WIDTH;
     // number of samples per pixel
-    int SAMPLES = 9;
+    int SAMPLES = 100;
     double INVERSE_SAMPLES = 1.0/SAMPLES,
            SQRT_SAMPLES = sqrt(SAMPLES),
            INVERSE_SQRT_SAMPLES = 1.0/SQRT_SAMPLES;
@@ -40,7 +40,23 @@ int main(int argc, const char* argv[])
     Color AMBIENT_COLOR(1.0, 1.0, 1.0);
     double RADIANCE_SCALE = 1.0;
 
-    int num_frames = 100;
+    FILE* fh = fopen("earth_10k.png", "r");
+    gdImage* map = gdImageCreateFromPng(fh);
+    fclose(fh);
+
+    //FILE* fh2 = fopen("moon_4k.png", "r");
+    //gdImage* moon = gdImageCreateFromPng(fh2);
+    //fclose(fh2);
+
+    FILE* fh3 = fopen("earthlights_10k.png", "r");
+    gdImage* earthLights = gdImageCreateFromPng(fh3);
+    fclose(fh3);
+
+    FILE* fh4 = fopen("earthspec_10k.png", "r");
+    gdImage* earthSpec = gdImageCreateFromPng(fh4);
+    fclose(fh4);
+
+    int num_frames = 1;
     for (int nr = 0; nr < num_frames; nr++) {
 
     cout << "rendering frame " << nr << endl;
@@ -58,21 +74,39 @@ int main(int argc, const char* argv[])
     Material BLUE_METAL = createMetal(Color(0.0, 0.0, 1.0));
     Material YELLOW_MATTE = createMatte(Color(1.0, 1.0, 0.0));
     Material BLUE_MATTE = createMatte(Color(0.1, 0.1, 0.7));
+    Material WHITE_MATTE = createMatte(Color(1.0, 1.0, 1.0));
 
     vector<LightSource> lights;
-    lights.push_back(LightSource(vec3(500.0, 0.0, 500.0),
-                                 10.0,
+
+    //double rot_theta = (nr % 40)/40.0 * 2.0 * M_PI;
+    double rot_theta = -15*M_PI/20.0;
+
+    double distance_to_earth = 1e10;
+    double plane_diff = distance_to_earth*sin(23.439*M_PI/180.0);
+    lights.push_back(LightSource(vec3(distance_to_earth, plane_diff, 0.0),
+                                 10000.0,
                                  Color(1.0, 1.0, 0.5)));
     vector<Surface*> surfaces;
     surfaces.push_back(new Planet(vec3(0.0, 0.0, 0.0),
                                   100.0,
                                   BLUE_MATTE,
-                                  "map.png",
-                                  nr*M_PI/num_frames));
+                                  map,
+                                  earthLights,
+                                  earthSpec,
+                                  rot_theta));
+    //surfaces.push_back(new Planet(vec3(-200.0, 0.0, -200.0),
+    //                              25.0,
+    //                              WHITE_MATTE,
+    //                              moon,
+    //                              NULL,
+    //                              NULL,
+    //                              0.0));
 
     // position of eye
-    double theta = M_PI - 5.0 * M_PI / 5.0;
-    vec3 eye(400*cos(theta), 100.0, 400*sin(theta));
+    //double eye_theta = (nr % 100)/100.0 * 2.0 * M_PI;
+    double eye_theta = 13*M_PI/20.0;
+    double distance = 300.0;
+    vec3 eye(distance*cos(eye_theta), 300.0, distance*sin(eye_theta));
 
     // where the eye is looking
     vec3 looking_at(0.0, 0.0, 0);
@@ -86,7 +120,9 @@ int main(int argc, const char* argv[])
     vec3 c = eye - DISTANCE_TO_SCREEN * w;
 
     for (int x = 0; x < IMAGE_WIDTH; x++) {
-        //cout << x << " out of " << IMAGE_WIDTH << " done." << endl;
+        if (num_frames == 1) {
+            cout << x << " out of " << IMAGE_WIDTH << " done." << endl;
+        }
 
         for (int y = 0; y < IMAGE_HEIGHT; y++) {
 
@@ -152,7 +188,7 @@ int main(int argc, const char* argv[])
                         const Material& material = bestIntersection.material();
                         if (material.ambientWeight() > 0.0) {
                             pixel += material.ambientWeight()
-                                   * f.mul(AMBIENT_COLOR.mul(material.diffuseColor()));
+                                   * f.mul(AMBIENT_COLOR.mul(material.ambientColor()));
                         }
 
                         for (vector<LightSource>::iterator light = lights.begin();
@@ -252,11 +288,21 @@ int main(int argc, const char* argv[])
     }
 
     char out_name[256];
-    sprintf(out_name, "earth/earth%02d.png", nr);
+    sprintf(out_name, "earth/earth%d.png", nr);
+
+    cout << "Saving " << out_name << endl;
 
     FILE* outFh = fopen(out_name, "w");
     gdImagePng(img, outFh);
     gdImageDestroy(img);
+    fclose(outFh);
+
+    for (vector<Surface*>::iterator surface = surfaces.begin();
+         surface != surfaces.end();
+         surface++) {
+
+        delete *surface;
+    }
 
     }
 

@@ -15,6 +15,10 @@ Intersection::Intersection()
 {
 }
 
+Surface::~Surface()
+{
+}
+
 Sphere::Sphere(const vec3& location, int radius, const Material& material)
     : m_location(location),
       m_radius(radius),
@@ -60,17 +64,22 @@ bool Sphere::intersect(const vec3& origin,
 Planet::Planet(const vec3& location,
                int radius,
                const Material& material,
-               const char* map,
+               gdImage* map,
+               gdImage* ambient,
+               gdImage* specular,
                double theta0)
     : m_location(location),
       m_radius(radius),
       m_material(material),
-      m_img(NULL),
+      m_ambient(ambient),
+      m_specular(specular),
+      m_img(map),
       m_theta0(theta0)
 {
-    FILE* fh = fopen(map, "r");
-    m_img = gdImageCreateFromPng(fh);
-    fclose(fh);
+}
+
+Planet::~Planet()
+{
 }
 
 bool Planet::intersect(const vec3& origin,
@@ -100,23 +109,58 @@ bool Planet::intersect(const vec3& origin,
         if (result.initialized()) {
             vec3 hit = origin + result.time() * ray;
             vec3 pos = hit - m_location;
-            double theta = acos(pos.z() / m_radius);
-            double phi = atan(pos.y() / pos.x());
+            double theta = acos(pos.y() / m_radius);
+            double phi = atan2(pos.z(), pos.x());
 
-            theta = fmod(theta + m_theta0, M_PI);
+            phi = phi + m_theta0;
+            if (phi > M_PI) {
+                phi = phi - 2*M_PI;
+            }
+            else if (phi < -M_PI) {
+                phi = phi + 2*M_PI;
+            }
 
             int mapWidth = gdImageSX(m_img);
             int mapHeight = gdImageSY(m_img);
 
-            int mapX = (int)(theta*mapWidth/(M_PI));
-            int mapY = (int)(mapHeight/2.0 - phi*mapHeight/(M_PI));
+            int mapX = (int)(mapWidth/2.0 - phi*mapWidth/(2.0*M_PI));
+            int mapY = (int)(theta*mapHeight/(M_PI));
 
-            int color = gdImageGetPixel(m_img, mapX, mapY);
-            double r = ((color >> 16) & 0xFF) / (double)0xFF;
-            double g = ((color >> 8) & 0xFF) / (double)0xFF;
-            double b = (color & 0xFF) / (double)0xFF;
+            //cout << "theta=" << (theta*180.0/M_PI) << " "
+            //     << "phi=" << (phi*180.0/M_PI) << " "
+            //     << "x=" << mapX << " "
+            //     << "y=" << mapY << endl;
 
-            m_material.diffuseColor(Color(r, g, b));
+            {
+                int color = gdImageGetPixel(m_img, mapX, mapY);
+                double r = ((color >> 16) & 0xFF) / (double)0xFF;
+                double g = ((color >> 8) & 0xFF) / (double)0xFF;
+                double b = (color & 0xFF) / (double)0xFF;
+
+                m_material.diffuseColor(Color(r, g, b));
+                m_material.highlightColor(Color(r, g, b));
+            }
+
+            if (m_ambient != NULL) {
+                int color = gdImageGetPixel(m_ambient, mapX, mapY);
+                double r = ((color >> 16) & 0xFF) / (double)0xFF;
+                double g = ((color >> 8) & 0xFF) / (double)0xFF;
+                double b = (color & 0xFF) / (double)0xFF;
+
+                m_material.ambientColor(Color(r, g, b));
+            } else {
+                m_material.ambientColor(m_material.diffuseColor());
+            }
+
+            if (m_specular != NULL) {
+                int color = gdImageGetPixel(m_specular, mapX, mapY);
+                double c = (color & 0xFF) / (double)0xFF;
+                m_material.specularWeight(c);
+                m_material.shininess(10.0);
+            } else {
+                m_material.specularWeight(0.0);
+                m_material.shininess(0.0);
+            }
 
             result.hit(hit);
             result.normal((result.hit() - m_location).normalize());

@@ -15,13 +15,23 @@ public:
              double,
              const Color&,
              const Color&,
+             const Color&,
              const Color&);
 
     inline double ambientWeight() const { return m_ambientWeight; }
+
     inline double diffuseWeight() const { return m_diffuseWeight; }
+
     inline double specularWeight() const { return m_specularWeight; }
+    inline void specularWeight(double v) { m_specularWeight = v; }
+
     inline double reflectionWeight() const { return m_reflectionWeight; }
+
     inline double shininess() const { return m_shininess; }
+    inline void shininess(double v) { m_shininess = v; }
+
+    inline const Color& ambientColor() const { return m_ambientColor; }
+    inline void ambientColor(const Color& v) { m_ambientColor = v; }
 
     inline const Color& diffuseColor() const { return m_diffuseColor; }
     inline void diffuseColor(const Color& v) { m_diffuseColor = v; }
@@ -38,6 +48,7 @@ private:
     double m_specularWeight;
     double m_reflectionWeight;
     double m_shininess;
+    Color m_ambientColor;
     Color m_diffuseColor;
     Color m_highlightColor;
     Color m_reflectionColor;
